@@ -20,16 +20,14 @@ df = pd.DataFrame(emojis, columns=['name', 'unicode', 'keywords', 'definition'])
 print(df['unicode'].head())
 sentencevector = []
 count = 0
-df['definition'] = df['definition'].apply(lambda x: x.split(',')[0])
-for i in df['definition'] + df['name']:
-    temp = []
-    token = nlp(i)
-    temp.append(np.average(token.vector))
-    # print('inside',i,temp)
-    temp = np.asarray(temp)
-    # print(i,temp.mean())
-    sentencevector.append(temp.mean())
-    count = count + 1
+for i in range(len(emojis)):
+    desc = df['definition'][i] + df['name'][i]
+    token = nlp(desc)
+    vecs = [t.vector for t in token]
+    print(desc)
+    mean_vec = np.average(vecs)
+    sentencevector.append(mean_vec)
+    count=count+1
 print(len(sentencevector), count)
 print(sentencevector)
 np.save("vector.npy", sentencevector)
