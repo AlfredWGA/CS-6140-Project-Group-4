@@ -58,7 +58,6 @@ class Emoji2Vec(LightningModule):
         emoji_vec = self.embedding(input_emoji) # shape [batch_size, embedding_sim]
 
         # desc_vec = torch.mean(input_word, dim=1)   # shape [batch_size, embedding_sim]
-        
         if self.encoder == "cnn": 
             desc_vec = TextCNN(input_word) # Have to select CNN 
         elif self.encoder == "rnn": 
