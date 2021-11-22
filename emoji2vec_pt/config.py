@@ -29,6 +29,11 @@ def remove_emoji(file_path, dest_path):
 			g.write(line[:-8])
 			g.write("\n")
 
+"""
+	This function preprocesses the text into a list of indices, 
+	where each indice represents the count of the word in the entire
+	text. The returned array is padded with 0's. 
+"""
 def preprocess_text(file_path):
 	text = []
 	# Clean text: lower case every word and remove 
@@ -47,7 +52,30 @@ def preprocess_text(file_path):
 
 
 	# Build vocabulary 
-	
+	vocab = {}
+	for sentence in clean_text:
+		for word in sentence:
+			if word in vocab: 
+				vocab[word] += 1
+				continue
+			else: vocab[word] = 0
 
+	# Word to index 
+	padded_word_idx = []
+	word_idx = []
+	for sentence in clean_text: 
+		sent = []
+		for word in sentence: 
+			sent.append(vocab[word])
+		word_idx.append(sent)
+
+	# Padding all sentences to match longest sentence length 
+	longest_sentence = max([len(sent) for sent in word_idx])
+	for sent in word_idx:
+		if len(sent) < longest_sentence: 
+			pad = [0] * (longest_sentence - len(sent))
+			padded_word_idx.append(sent + pad)
+
+	return padded_word_idx
 
 preprocess_text("./data/text_desc_data.txt")
