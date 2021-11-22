@@ -78,4 +78,4 @@ def preprocess_text(file_path):
 
 	return padded_word_idx
 
-preprocess_text("./data/text_desc_data.txt")
+#preprocess_text("./data/text_desc_data.txt")

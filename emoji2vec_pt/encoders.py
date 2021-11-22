@@ -10,9 +10,9 @@ import numpy as np
 	into word vectors. 
 """
 class TextCNN(nn.Module): 
-	def __init__(self, data_path, vec_dim): 
+	def __init__(self, data, vec_dim): 
 		super(TextCNN, self).__init__()
-		self.vocab_size, self.vec_dim = config.get_vocab(data_path), vec_dim
+		self.vocab_size, self.vec_dim = config.get_vocab(data), vec_dim
 		self.embedding = nn.Embedding(self.vocab_size, embedding_dim=vec_dim,
 									  padding_idx=0, max_norm=5.0)
 
@@ -46,6 +46,6 @@ class TextCNN(nn.Module):
 
 		print (x_conv)
 
-
-net = TextCNN('./data/train.txt', 300)
+data = config.preprocess_text('./data/text_desc_data.txt')
+net = TextCNN(data, 300)
 net.forward("We would live long")
