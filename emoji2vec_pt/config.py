@@ -1,13 +1,11 @@
 import nltk
-nltk.download('punkt')
-from nltk.tokenize import word_tokenize
 """
 	This function returns the vocabulary from text data. 
     This function considers only the vocabularies listed on each
     line before an emoji occurs. 
 """
 import string, re
-def get_vocab(file_path): 
+def get_vocab_size_from_file(file_path): 
 	vocab = 0
 	file = open(file_path, "r")
 	i = 0
@@ -76,6 +74,5 @@ def preprocess_text(file_path):
 			pad = [0] * (longest_sentence - len(sent))
 			padded_word_idx.append(sent + pad)
 
-	return padded_word_idx
-
-#preprocess_text("./data/text_desc_data.txt")
+	total_words = len(vocab)
+	return padded_word_idx, total_words
