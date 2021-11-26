@@ -10,61 +10,53 @@ import numpy as np
     into word vectors. 
 """
 class TextCNN(nn.Module): 
-    def __init__(self, data, total_words, vec_dim): 
+    def __init__(self, vec_dim): 
         super(TextCNN, self).__init__()
-        self.vocab_size, self.vec_dim = total_words, vec_dim 
-        self.embedding = nn.Embedding(self.vocab_size, embedding_dim=vec_dim,
-                                      padding_idx=0, max_norm=5.0)
-
+        self.vec_dim = vec_dim 
         self.filter_sizes = [2, 3, 4]
         self.num_filter = 150
 
         self.relu = nn.ReLU()
+        self.conv1d_layers = []
 
-        self.conv1 = nn.Conv1d(12, 90, kernel_size=1)
-        self.conv2 = nn.Conv1d(90, 150, kernel_size=1)
-        self.conv3 = nn.Conv1d(150, 300, kernel_size=1)
+        # Stacking of Convolutional layers in CNN for NLP
+        for size in self.filter_sizes: 
+            layer = nn.Conv1d(vec_dim, self.num_filter, kernel_size=size)
+            nn.init.xavier_normal_(layer.weight.data)
+            setattr(self, 'layer_{}'.format(size), layer)
+            self.conv1d_layers.append(layer)
 
-        self.pool = nn.MaxPool1d(kernel_size=1) 
+        self.fc1 = nn.Linear(self.num_filter * len(self.filter_sizes), 300)
 
-        self.fc1 = nn.Linear(10, 30, True) # learns additive bias 
-        
-        # current issue:
-        # the forward pass is taking the whole data, but mapping the 
-        # data tensor to a vector of 300 dimenstions. we don't want this. 
 
-        # questions: 
-        # If you pool with a size of 1, does it have an effect? 
-        # Clarification on dimensions from convolution
-
+    # Expect embedded vector of size 300. 
     def forward(self, x): 
-        x_embed = self.embedding(torch.LongTensor(x)) 
-        # For single data input, [12, 300]
-        # For all data input, [5584, 12, 300]
+        """
+            x: an embedded vector (batch_size, length, vec_dimension)
+        """
 
-        # 12 is for the total length of each sentence with padding
-        # 300 is the specified vector dimension
-        # not so sure why 5584, our dictionary is < 4000
-        # perhaps 5584 is the size with repetition of words. 
-        
-        x1 = self.conv1(x_embed)
-        x1 = self.relu(x1)
-        x1 = self.pool(x1)
+        # Change input shape
+        # (batch_size, length[row], dim[col]) --> (batch_size, dim[col], length[row])
+        x = x.permute(0, 2, 1)
 
-        x2 = self.conv2(x1)
-        x2 = self.relu(x2)
-        x2 = self.pool(x2)
+        # Feed into network 
+        conv1d_outputs = []
+        for layer in self.conv1d_layers:
+            out = layer(x)
+            activation = self.relu(out)
 
-        x3 = self.conv3(x2)
-        x3 = self.relu(x3)
-        x3 = self.pool(x3)
+            # Max pool
+            activation, _ = activation.max(dim=2) #????
+            conv1d_outputs.append(activation)
+  
+        x = torch.cat(conv1d_outputs, dim=1)
 
-        flt = torch.flatten(x3)
-        print (flt.shape)
-        print (x3.shape) # torch.Size([5584, 300, 300])
-        
+        # Output 
+        out = self.fc1(x)
+        return out
 
-if __name__ == "__main__":
-    data, no_of_words = config.preprocess_text('./data/text_desc_data.txt')
-    net = TextCNN(data, no_of_words, 300)
-    net.forward(data)
+
+data, no_of_words = config.preprocess_text('./data/text_desc_data.txt')
+net = TextCNN(vec_dim=300)
+x = torch.randn(2, 5, 300)
+net.forward(x)
