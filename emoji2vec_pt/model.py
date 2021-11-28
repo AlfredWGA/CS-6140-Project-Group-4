@@ -1,20 +1,21 @@
-from numpy.core import numeric
 import torch.nn as nn
 import torch.functional as F
 import torch
 import numpy as np
 import pytorch_lightning as pl
 from pytorch_lightning import LightningModule
+from encoders import TextBOW, TextCNN
+from torchmetrics import Accuracy
 
 
 class Emoji2Vec(LightningModule):
-    def __init__(self, num_embeddings, embedding_dim, encoder="bow"):
+    def __init__(self, num_embeddings, embedding_dim, encoder_type="bow"):
         super(Emoji2Vec, self).__init__()
 
         self.num_embeddings = num_embeddings
         self.embedding_dim = embedding_dim
 
-        self.encoder = encoder
+        self.encoder_type = encoder_type
 
         self.embedding = nn.Embedding(
             num_embeddings=num_embeddings, 
@@ -22,33 +23,20 @@ class Emoji2Vec(LightningModule):
             padding_idx=0
         )
 
-        if encoder == "bow":
-            pass
-        elif encoder == "cnn":
-            pass
-        elif encoder == "rnn":
+        self.encoder = None
+        if encoder_type == "bow":
+            self.encoder = TextBOW()
+        elif encoder_type == "cnn":
+            self.encoder = TextCNN()
+        elif encoder_type == "rnn":
             pass
         else:
-            raise NotImplementedError(f"The requested encoder {encoder} is not implemented.")
+            raise NotImplementedError(f"The requested encoder {encoder_type} is not implemented.")
 
-        self.num_classes = 2
+        # self.num_classes = 2
         self.criterion = nn.BCEWithLogitsLoss()
-        # self.filter_sizes = [2, 3, 4]
-        # self.num_filter = 150
 
-        # self.conv1d_layers = []
-        # for size in self.filter_sizes:
-        #     conv1d = nn.Conv1d(vec_dim, self.num_filter, kernel_size=size)
-        #     nn.init.xavier_normal_(conv1d.weight.data)
-        #     setattr(self, "conv1d_{}".format(size), conv1d)
-        #     self.conv1d_layers.append(conv1d)
-
-        # self.relu = nn.ReLU()
-        # # self.global_maxpool = lambda x: torch.max(x, dim=2)
-
-        # self.fc1 = nn.Linear(self.num_filter * len(self.filter_sizes), 256)
-        # self.dropout = nn.Dropout(0.5)
-        # self.fc2 = nn.Linear(256, self.num_classes)
+        self.acc = Accuracy()
 
     def forward(self, input_emoji: torch.Tensor, input_word: torch.Tensor):
         """
@@ -57,57 +45,44 @@ class Emoji2Vec(LightningModule):
         """
         emoji_vec = self.embedding(input_emoji) # shape [batch_size, embedding_sim]
 
-        # desc_vec = torch.mean(input_word, dim=1)   # shape [batch_size, embedding_sim]
-        if self.encoder == "cnn": 
-            desc_vec = TextCNN(input_word) # Have to select CNN 
-        elif self.encoder == "rnn": 
-            desc_vec = TextRNN(input_word)
-        elif self.encoder == "bow": 
-            desc_vec = TextBOW(input_word) # Bag of words, have to change still
+        desc_vec = self.encoder(input_word)   # shape [batch_size, embedding_sim]
         
         # shape [batch_size, 1, 1]
         product = torch.bmm(torch.unsqueeze(emoji_vec, 1), torch.unsqueeze(desc_vec, -1))
 
+        # shape [batch_size, 1]
         logits = torch.squeeze(product)
 
         return logits
-        # (batch, vec_dim, length)
-        # x = x.permute(0, 2, 1)
-
-        # conv1d_outputs = []
-        # for conv1d in self.conv1d_layers:
-        #     o = self.relu(conv1d(x))
-        #     # Global max pooling
-        #     # (batch, num_filter)
-        #     o, _ = o.max(dim=2)
-        #     conv1d_outputs.append(o)
-
-        # x = torch.cat(conv1d_outputs, dim=1)
-
-        # x = self.dropout(self.fc1(x))
-        # x = self.fc2(x)
-        # return x
 
     def training_step(self, batch, batch_idx):
+        input_emoji = torch.cat([batch[0][0], batch[1][0]])
+        input_word = torch.vstack([batch[0][1], batch[1][1]])
+        y_true = torch.cat([batch[0][2], batch[1][2]])
+        # input_emoji, input_word, y_true = batch
+
+        y_pred = self(input_emoji, input_word)
+
+        loss = self.criterion(y_pred, y_true.float())
+        self.log("train_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True, batch_size=input_emoji.shape[0])
+    
+    def validation_step(self, batch, batch_idx):
         input_emoji, input_word, y_true = batch
         y_pred = self(input_emoji, input_word)
 
-        loss = F.cross_entropy(y_pred, y_true)
-        return loss
-    
-    def validation_step(self, batch, batch_idx):
-        x, y = batch
-        y_hat = self(x)
-        val_loss = F.cross_entropy(y_hat, y)
-        return val_loss
-    
-    def training_epoch_end(self, training_step_outputs)
+        val_loss = self.criterion(y_pred, y_true.float())
+        val_acc = self.acc(y_pred, y_true)
+        self.log("val_loss", val_loss, on_epoch=True)
+        self.log("val_acc", val_acc, on_epoch=True)
 
     def test_step(self, batch, batch_idx):
-        x, y = batch
-        y_hat = self(x)
-        loss = F.cross_entropy(y_hat, y)
-        return loss
+        input_emoji, input_word, y_true = batch
+        y_pred = self(input_emoji, input_word)
+
+        test_loss = self.criterion(y_pred, y_true.float())
+        test_acc = self.acc(y_pred, y_true)
+        self.log("test_loss", test_loss, on_epoch=True)
+        self.log("test_acc", test_acc, on_epoch=True)
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=1e-3)

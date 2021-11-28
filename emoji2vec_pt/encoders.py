@@ -5,6 +5,16 @@ import config
 import numpy as np
 
 
+class TextBOW(nn.Module):
+    def __init__(self):
+        super().__init__()
+    
+    def forward(self, x: torch.Tensor):
+        """
+        x: A batch word vectors with shape [batch_size, max_len, vec_dim]
+        """
+        return x.mean(dim=1)
+
 """
     This class is responsible for the classification of texts 
     into word vectors. 
