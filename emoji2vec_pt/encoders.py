@@ -66,7 +66,10 @@ class TextCNN(nn.Module):
         return out
 
 
-data, no_of_words = config.preprocess_text('./data/text_desc_data.txt')
-net = TextCNN(vec_dim=300)
-x = torch.randn(2, 5, 300)
-net.forward(x)
+# Usage 
+if __name__=="__main__": 
+    data, no_of_words = config.preprocess_text('./data/text_desc_data.txt')
+    net = TextCNN(vec_dim=300)
+    x = torch.randn(2, 5, 300)
+    net.forward(x)
+
