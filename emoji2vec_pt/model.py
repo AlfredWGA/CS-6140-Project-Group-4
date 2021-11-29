@@ -5,7 +5,7 @@ import numpy as np
 import pytorch_lightning as pl
 from pytorch_lightning import LightningModule
 from encoders import TextBOW, TextCNN
-from torchmetrics import Accuracy
+from torchmetrics.functional import accuracy
 
 
 class Emoji2Vec(LightningModule):
@@ -36,8 +36,6 @@ class Emoji2Vec(LightningModule):
         # self.num_classes = 2
         self.criterion = nn.BCEWithLogitsLoss()
 
-        self.acc = Accuracy()
-
     def forward(self, input_emoji: torch.Tensor, input_word: torch.Tensor):
         """
         input_emoji: A batch of emoji ids, shape [batch_size, 1]
@@ -47,8 +45,11 @@ class Emoji2Vec(LightningModule):
 
         desc_vec = self.encoder(input_word)   # shape [batch_size, embedding_sim]
         
+        emoji_vec = torch.unsqueeze(emoji_vec, 1)
+        desc_vec = torch.unsqueeze(desc_vec, -1)
+
         # shape [batch_size, 1, 1]
-        product = torch.bmm(torch.unsqueeze(emoji_vec, 1), torch.unsqueeze(desc_vec, -1))
+        product = torch.bmm(emoji_vec, desc_vec)
 
         # shape [batch_size, 1]
         logits = torch.squeeze(product)
@@ -64,23 +65,28 @@ class Emoji2Vec(LightningModule):
         y_pred = self(input_emoji, input_word)
 
         loss = self.criterion(y_pred, y_true.float())
-        self.log("train_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True, batch_size=input_emoji.shape[0])
+        self.log("train_loss", loss, on_epoch=True, logger=True)
+        return loss
     
     def validation_step(self, batch, batch_idx):
         input_emoji, input_word, y_true = batch
-        y_pred = self(input_emoji, input_word)
+        logits = self(input_emoji, input_word)
 
-        val_loss = self.criterion(y_pred, y_true.float())
-        val_acc = self.acc(y_pred, y_true)
+        val_loss = self.criterion(logits, y_true.float())
+        y_pred = torch.sigmoid(logits)
+
+        val_acc = accuracy(y_pred, y_true)
         self.log("val_loss", val_loss, on_epoch=True)
         self.log("val_acc", val_acc, on_epoch=True)
 
     def test_step(self, batch, batch_idx):
         input_emoji, input_word, y_true = batch
-        y_pred = self(input_emoji, input_word)
+        logits = self(input_emoji, input_word)
 
-        test_loss = self.criterion(y_pred, y_true.float())
-        test_acc = self.acc(y_pred, y_true)
+        test_loss = self.criterion(logits, y_true.float())
+        y_pred = torch.sigmoid(logits)
+
+        test_acc = accuracy(y_pred, y_true)
         self.log("test_loss", test_loss, on_epoch=True)
         self.log("test_acc", test_acc, on_epoch=True)
 

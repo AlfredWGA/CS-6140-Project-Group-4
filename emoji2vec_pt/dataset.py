@@ -1,5 +1,4 @@
 import pathlib
-from numpy.core.defchararray import endswith
 import spacy
 from torch.utils.data import Dataset
 import numpy as np
@@ -32,9 +31,8 @@ def load_vocab(fpath):
     Load the emoji vocab.
     """
     vocab = {}
-    idx = 0
     with open(fpath, "r", encoding="utf-8") as f:
-        for line in f:
+        for idx, line in enumerate(f):
             emoji = line.strip()
             vocab[emoji] = idx
     
@@ -72,7 +70,7 @@ def transform(sentence: str, max_len, nlp, word2vec):
     if len(vectors) < max_len:
         num_padding = max_len - len(vectors)
         for i in range(num_padding):
-            vectors.append(np.zeros(shape=[1, vec_dim]))
+            vectors.append(np.zeros(shape=[vec_dim,]))
     # If the length is too long, we truncate the sentence
     elif len(vectors) > max_len:
         vectors = vectors[:max_len]
@@ -83,16 +81,21 @@ def transform(sentence: str, max_len, nlp, word2vec):
 
 
 class EmojiDataset(Dataset):
-    def __init__(self, df: pd.DataFrame, max_len: int, vocab: dict, nlp, word2vec):
+    def __init__(self, df: pd.DataFrame, max_len: int, vocab: dict, nlp, word2vec, size=None):
         self.df = df    # The DataFrame containing all samples
         self.max_len = max_len  # Maximum length for the description
         self.vocab = vocab  # Vocab of the emoji
         self.nlp = nlp  # The SpaCy model for tokenization
         self.word2vec = word2vec    # The word2vec model
 
+        if size is None:
+            self.size = len(self.df)
+        else:
+            self.size = size    # Used to display the size of the dataset, since it might be mistakenly inferred (when there're 2 dataloaders for training). 
+
     def __len__(self):
         # Return the size of the dataset.
-        return len(self.df)
+        return self.size
 
     def __getitem__(self, idx):
         #  Fetching a data sample for a given idx.
@@ -100,7 +103,7 @@ class EmojiDataset(Dataset):
         desc, emoji, label = self.df.iloc[idx]
 
         emoji_X = np.asarray(self.vocab[emoji])
-        desc_X = transform(desc, self.max_len, self.nlp, self.word2vec)
+        desc_X = transform(desc, self.max_len, self.nlp, self.word2vec).astype(np.float32)
         y = np.asarray(label)
 
         return emoji_X, desc_X, y
