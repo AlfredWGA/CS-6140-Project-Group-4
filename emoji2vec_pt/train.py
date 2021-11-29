@@ -45,10 +45,10 @@ val_dataloader = DataLoader(val_dataset, batch_size=batch_size)
 
 model = Emoji2Vec(num_embeddings=len(vocab), embedding_dim=embedding_dim, encoder_type="bow")
 
-wandb_logger = WandbLogger(project="emoji2vec", save_dir=current_path)
+wandb_logger = WandbLogger(project="emoji2vec", save_dir=current_path / "ckpt")
 
-trainer = pl.Trainer(default_root_dir=current_path / "ckpt",
-                    callbacks=[EarlyStopping(monitor="val_loss")],
+trainer = pl.Trainer(callbacks=[EarlyStopping(monitor="val_loss")],
                     gpus=1, # Remove this if training with cpus
-                    logger=wandb_logger)
+                    logger=wandb_logger
+                    )
 trainer.fit(model, train_dataloaders=[train_dataloader, train_neg_dataloader], val_dataloaders=val_dataloader)
