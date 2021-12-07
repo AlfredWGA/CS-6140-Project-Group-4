@@ -1,0 +1,1 @@
+model_desc = Emoji2Vec.load_from_checkpoint(ckpt_desc_path, num_embeddings=len(vocab), embedding_dim=300)
