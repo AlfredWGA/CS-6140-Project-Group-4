@@ -6,18 +6,23 @@ import matplotlib.pyplot as plt
 import pickle as pk
 from gensim.models import KeyedVectors
 import numpy as np
+from pathlib import Path
+# from matplotlib.font_manager import FontProperties
 
 # Internal dependencies
 #from model import Emoji2Vec
 #from parameter_parser import CliParser
 
+project_path = Path(__file__).parent.resolve()
+
+# prop = FontProperties(fname=project_path / 'data\AppleColorEmoji.ttc')
+
 
 def __visualize():
-
     # load vectors
-    datapath = 'pre-trained/emoji2vec_bow.bin'
+    datapath = project_path / 'pre-trained/emoji2vec_bow.bin'
     wv_from_bin = KeyedVectors.load_word2vec_format(datapath, binary=True)
-    f = open('data/vocab.txt', encoding='utf-8-sig', errors='ignore')
+    f = open(project_path / 'data/vocab.txt', encoding='utf-8', errors='ignore')
     vocab = f.read().splitlines()
     #print(len(vocab))
     V = np.zeros(shape=[len(vocab), 300])
@@ -34,7 +39,7 @@ def __visualize():
     plt.scatter(x, y, marker='o', alpha=0.0)
 
     for i in range(len(trans)):
-        ax.annotate(vocab[i], xy=trans[i], textcoords='data', fontname='DejaVu Sans', fontsize=10)
+        ax.annotate(vocab[i], xy=trans[i], textcoords='data')
 
     plt.grid()
     plt.show()
